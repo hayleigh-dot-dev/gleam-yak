@@ -48,7 +48,7 @@ seemed appropriate. 🏳️‍🌈
 > What is the syntax / how do I write yak?
 
 Right now, this package does not come with a parser or make any assertions on what
-syntax might be appropriate: this is by design! Yak is supposed to be a minmal
+syntax might be appropriate: this is by design! Yak is supposed to be a minimal
 embeddable scripting language for your Gleam programs, but how that yak code is
 produced is up to you.
 
