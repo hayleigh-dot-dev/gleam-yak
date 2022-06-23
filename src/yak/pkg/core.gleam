@@ -12,15 +12,18 @@ import gleam/map
 ///
 pub fn env () -> Env {
     env.from_list([
+        // IO ------------------------------------------------------------------
         #("core::print", print()),
-        #("core::add", add())
+        // MATHS ---------------------------------------------------------------
+        #("core::add", add()),
+        #("core::sub", sub()),
+        #("core::mul", mul()),
+        #("core::div", div()),
     ])
 }
 
-//
+// IO --------------------------------------------------------------------------
 
-///
-///
 fn print () -> Expr {
     expr.fun([ "x" ], expr.extern(fn (env) {
         // If `x` isn't in the environment at this point, then we have an
@@ -32,10 +35,8 @@ fn print () -> Expr {
     }))
 }
 
-//
+// MATHS -----------------------------------------------------------------------
 
-///
-///
 fn add () -> Expr {
     expr.fun([ "x", "y" ], expr.extern(fn (env) {
         assert Ok(x) = map.get(env, "x")
@@ -44,6 +45,60 @@ fn add () -> Expr {
         case x, y {
             expr.Lit(expr.Number(x)), expr.Lit(expr.Number(y)) ->
                 expr.number(x +. y)
+            
+            expr.Lit(expr.Number(_)), _ ->
+                expr.raise("...")
+
+            _, _ ->
+                expr.raise("...")
+        }
+    }))
+}
+
+fn sub () -> Expr {
+    expr.fun([ "x", "y" ], expr.extern(fn (env) {
+        assert Ok(x) = map.get(env, "x")
+        assert Ok(y) = map.get(env, "y")
+
+        case x, y {
+            expr.Lit(expr.Number(x)), expr.Lit(expr.Number(y)) ->
+                expr.number(x -. y)
+            
+            expr.Lit(expr.Number(_)), _ ->
+                expr.raise("...")
+
+            _, _ ->
+                expr.raise("...")
+        }
+    }))
+}
+
+fn mul () -> Expr {
+    expr.fun([ "x", "y" ], expr.extern(fn (env) {
+        assert Ok(x) = map.get(env, "x")
+        assert Ok(y) = map.get(env, "y")
+
+        case x, y {
+            expr.Lit(expr.Number(x)), expr.Lit(expr.Number(y)) ->
+                expr.number(x *. y)
+            
+            expr.Lit(expr.Number(_)), _ ->
+                expr.raise("...")
+
+            _, _ ->
+                expr.raise("...")
+        }
+    }))
+}
+
+fn div () -> Expr {
+    expr.fun([ "x", "y" ], expr.extern(fn (env) {
+        assert Ok(x) = map.get(env, "x")
+        assert Ok(y) = map.get(env, "y")
+
+        case x, y {
+            expr.Lit(expr.Number(x)), expr.Lit(expr.Number(y)) ->
+                expr.number(x /. y)
             
             expr.Lit(expr.Number(_)), _ ->
                 expr.raise("...")
