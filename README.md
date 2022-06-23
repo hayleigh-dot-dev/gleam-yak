@@ -12,13 +12,13 @@ A small embeddable scripting language for Gleam.
 
 ```gleam
 import yak
-import yak/ast
+import yak/expr
 import yak/pkg/core
 
 pub fn main () {
     let script = [
-        ast.let_("greeting", ast.string("Hello, world!")),
-        ast.call(ast.var("core::print"), [ast.var("greeting")])
+        expr.let_("greeting", expr.string("Hello, world!")),
+        expr.call(ast.var("core::print"), [expr.var("greeting")])
     ]
 
     yak.run(script, core.env())
@@ -57,3 +57,13 @@ Web app, or maybe you utilise Gleam's type safety in some circumstances but thro
 together quick scripts in others? How yak might look or be written might change
 drastically depending on circumstance – I hope the community can help make some
 packages for the most common use cases!
+
+> How can I contribute?
+
+Despite what I just said above, it would still be useful to have a simple reference
+parser included in the package for people more interested in playing around or
+getting something working quickly.
+
+You could also help expand yak's package ecosystem, either by adding to the core
+packages provided with yak, or publishing your own to hex as bindings to other
+useful BEAM libraries.
