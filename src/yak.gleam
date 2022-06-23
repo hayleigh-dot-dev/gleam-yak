@@ -24,6 +24,14 @@ type Eval(a) =
 
 // 
 
+/// A yak script is a collection of expressions evaluated in sequence, and an
+/// initial environment containing all of the bindings accessible to the script.
+///
+/// What we get back is the resulting environment, updated to include any new
+/// `Let` bindings that may have been introduced. We also get back a result that
+/// tells us whether the script was successful or not. You can check out the
+/// [`Error`](#Error) type for a look at what runtime errors are possible in yak.
+///
 pub fn run (exprs: List(Expr), env: Env) -> #(Env, Result(Expr, Error)) {
     step_all(exprs)
         |> eval.map(list.last)
@@ -59,7 +67,7 @@ fn step (expr: Expr) -> Eval(Expr) {
     }
 }
 
-pub fn step_all (exprs: List(Expr)) -> Eval(List(Expr)) {
+fn step_all (exprs: List(Expr)) -> Eval(List(Expr)) {
     list.map(exprs, step)
         |> eval.all
 }
@@ -79,7 +87,7 @@ fn call (function: Expr, argument: Expr) -> Eval(Expr) {
         case expr {
             expr.Fun(name, body) -> {
                 step(argument) |> eval.then(fn (expr) {
-                    expr.substitute(body, name, expr)
+                    expr.substitute(body, name, expr, False)
                         |> step
                 })
             }

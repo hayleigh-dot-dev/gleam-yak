@@ -10,14 +10,53 @@ import gleam/pair
 ///
 ///
 pub type Expr {
+    /// A block represents a sequence of yak expressions to be evaluated, with the
+    /// final expression being the value of the entire block expression. If the
+    /// block is empty, this will evaluate to `Lit(Undefined)`.
     ///
     Block(List(Expr))
-    /// Functions in yak are curried, so all function calls are 
+    /// Functions in yak are curried, so all function calls take only a single
+    /// argument. To call a function with multiple arguments you'd nest `Call`s:
+    ///
+    /// ```gleam
+    /// Call(Call(Var("add"), Var("x")), Var("y"))
+    /// ```
+    ///
     Call(Expr, Expr)
+    /// Externals give us a way to call *Gleam* functions from a yak script. They
+    /// take the current environment as a map of bindings to expressions and should
+    /// return some other yak expression.
+    ///
+    /// In yak's core, for example, `core::print` is a binding to an external
+    /// that uses Gleam's built-in `debug` function. 
+    ///
     Extern(fn (Map(String, Expr)) -> Expr)
+    /// As we saw with `Call`, because functions are curried we must nest multiple
+    /// `Fun`s together to get a function that has multiple parameters:
+    ///
+    /// ```gleam
+    /// Fun("x", Fun("y", Var("x")))
+    /// ```
+    ///
     Fun(String, Expr)
+    /// Yak's if expressions don't require an `else` branch. If one is missing
+    /// but the condition is false, the expression will evaluate to `Lit(Undefined)`.
+    ///
     If(Expr, Expr, Option(Expr))
+    /// Let expressions introduce a new binding to the environment. Any proceeding
+    /// expressions can now access the new binding!
+    ///
+    /// ```gleam
+    /// Block([
+    ///     Let("x", Lit(Number(1))),
+    ///     Var("x")
+    /// ])
+    /// ```
+    ///
     Let(String, Expr)
+    /// See the documentation for [`Literal`](#Literal)s bellow for more details
+    /// one what sort of literal values exist in yak.
+    ///
     Lit(Literal(Expr))
     Var(String)
 }
@@ -35,11 +74,17 @@ pub type Literal(expr) {
     Boolean(Bool)
     Exception(String)
     Number(Float)
+    /// Note that this is a list of #(String, expr) pairs and not a map. This
+    /// means it's possible to have duplicate keys. When that happens the older
+    /// duplicate will still be evaluated but the new one will shadow it, making
+    /// it inaccessible.
+    ///
     Record(List(#(String, expr)))
     String(String)
     Undefined
 }
 
+///
 pub type Type {
     ArrayT
     BooleanT
@@ -186,19 +231,24 @@ pub fn simple_typeof (expr: Expr) -> Option(Type) {
 
 // MANIPULATiONS ---------------------------------------------------------------
 
+/// Recursively substitute some variable with another expression. By passing 
+/// `True` as the last parameter, this will also substitute variables that are
+/// later shadowed by bindings such as a function argument or a let binding name.
 ///
+/// Be careful when doing this, as you can end up accidentially substituting things
+/// you may not have intended and altering the behaviour of your program!
 ///
-pub fn substitute (expr: Expr, name: String, value: Expr) -> Expr {
+pub fn substitute (expr: Expr, name: String, value: Expr, ignore_bindings: Bool) -> Expr {
     case expr {
         Block(expressions) ->
             block(
-                list.map(expressions, substitute(_, name, value))
+                list.map(expressions, substitute(_, name, value, ignore_bindings))
             )
         
         Call(function, argument) ->
             call(
-                substitute(function, name, value),
-                [ substitute(argument, name, value) ]
+                substitute(function, name, value, ignore_bindings),
+                [ substitute(argument, name, value, ignore_bindings) ]
             )
         
         Extern(function) ->
@@ -207,24 +257,25 @@ pub fn substitute (expr: Expr, name: String, value: Expr) -> Expr {
                     |> function
             })
         
-        Fun(arg, body) ->
-            fun([ arg ], substitute(body, name, value))
+        // 
+        Fun(arg, body) if ignore_bindings || arg != name ->
+            fun([ arg ], substitute(body, name, value, ignore_bindings))
         
         If(condition, then, else) ->
             if_(
-                substitute(condition, name, value),
-                substitute(then, name, value),
-                option.map(else, substitute(_, name, value))
+                substitute(condition, name, value, ignore_bindings),
+                substitute(then, name, value, ignore_bindings),
+                option.map(else, substitute(_, name, value, ignore_bindings))
             )
         
-        Let(name_, body) if name_ != name ->
-            let_(name_, substitute(body, name, value))
+        Let(name_, body) if ignore_bindings || name_ != name ->
+            let_(name_, substitute(body, name, value, ignore_bindings))
         
         Lit(Array(elements)) ->
-            array(list.map(elements, substitute(_, name, value)))
+            array(list.map(elements, substitute(_, name, value, ignore_bindings)))
 
         Lit(Record(fields)) ->
-            record(list.map(fields, pair.map_second(_, substitute(_, name, value))))
+            record(list.map(fields, pair.map_second(_, substitute(_, name, value, ignore_bindings))))
         
         Var(name_) if name_ == name->
             value
