@@ -1,6 +1,6 @@
 // IMPORtS ---------------------------------------------------------------------
 
-import yak/ast.{Ast}
+import yak/expr.{Expr}
 import yak/env.{Env}
 
 import gleam/list
@@ -14,7 +14,7 @@ import eval/context
 // TYPES -----------------------------------------------------------------------
 
 pub type Error {
-    TypeError(expected: ast.Type, got: ast.Type)
+    TypeError(expected: expr.Type, got: expr.Type)
     Exception(message: String)
     OutOfScope(name: String)
 }
@@ -24,87 +24,87 @@ type Eval(a) =
 
 // 
 
-pub fn run (exprs: List(Ast), env: Env) -> #(Env, Result(Ast, Error)) {
+pub fn run (exprs: List(Expr), env: Env) -> #(Env, Result(Expr, Error)) {
     step_all(exprs)
         |> eval.map(list.last)
-        |> eval.map(result.unwrap(_, ast.undefined()))
+        |> eval.map(result.unwrap(_, expr.undefined()))
         |> eval.step(env)
 }
 
-fn step (expr: Ast) -> Eval(Ast) {
+fn step (expr: Expr) -> Eval(Expr) {
     case expr {
-        ast.Block(expressions) ->
+        expr.Block(expressions) ->
             block(expressions)
         
-        ast.Call(function, argument) ->
+        expr.Call(function, argument) ->
             call(function, argument)
         
-        ast.Extern(function) ->
+        expr.Extern(function) ->
             extern(function)
         
-        ast.Fun(name, body) ->
+        expr.Fun(name, body) ->
             fun(name, body)
         
-        ast.If(condition, then, else) ->
-            if_(condition, then, option.unwrap(else, ast.undefined()))
+        expr.If(condition, then, else) ->
+            if_(condition, then, option.unwrap(else, expr.undefined()))
         
-        ast.Let(name, body) ->
+        expr.Let(name, body) ->
             let_(name, body)
         
-        ast.Lit(literal) ->
+        expr.Lit(literal) ->
             lit(literal)
         
-        ast.Var(name) ->
+        expr.Var(name) ->
             var(name)
     }
 }
 
-pub fn step_all (exprs: List(Ast)) -> Eval(List(Ast)) {
+pub fn step_all (exprs: List(Expr)) -> Eval(List(Expr)) {
     list.map(exprs, step)
         |> eval.all
 }
 
 
-fn block (exprs: List(Ast)) -> Eval(Ast) {
+fn block (exprs: List(Expr)) -> Eval(Expr) {
     context.get() |> eval.then(fn (env) { 
         step_all(exprs)
             |> eval.map(list.last)
-            |> eval.map(result.unwrap(_, ast.undefined()))
+            |> eval.map(result.unwrap(_, expr.undefined()))
             |> context.then_set(env)
     })
 }
 
-fn call (function: Ast, argument: Ast) -> Eval(Ast) {
+fn call (function: Expr, argument: Expr) -> Eval(Expr) {
     step(function) |> eval.then(fn (expr) {
         case expr {
-            ast.Fun(name, body) -> {
+            expr.Fun(name, body) -> {
                 step(argument) |> eval.then(fn (expr) {
-                    ast.substitute(body, name, expr)
+                    expr.substitute(body, name, expr)
                         |> step
                 })
             }
             
             _ ->
                 typeof(expr)
-                    |> eval.then(fn (t) { eval.throw(TypeError(ast.FunctionT, t)) })
+                    |> eval.then(fn (t) { eval.throw(TypeError(expr.FunctionT, t)) })
         }
     })
 }
 
-fn extern (function: fn(Map(String, Ast)) -> Ast) -> Eval(Ast) {
+fn extern (function: fn(Map(String, Expr)) -> Expr) -> Eval(Expr) {
     context.get()
         |> eval.map(env.to_map)
         |> eval.map(function)
         |> eval.then(step)
 }
 
-fn fun (name: String, body: Ast) -> Eval(Ast) {
-    eval.succeed(ast.fun([ name ], body))
+fn fun (name: String, body: Expr) -> Eval(Expr) {
+    eval.succeed(expr.fun([ name ], body))
 }
 
-fn if_ (condition: Ast, then: Ast, else: Ast) -> Eval(Ast) {
+fn if_ (condition: Expr, then: Expr, else: Expr) -> Eval(Expr) {
     step(condition)
-        |> eval.map(ast.coerce_to_boolean)
+        |> eval.map(expr.coerce_to_boolean)
         |> eval.then(fn (b) {
             case b {
                 True ->
@@ -116,22 +116,22 @@ fn if_ (condition: Ast, then: Ast, else: Ast) -> Eval(Ast) {
         })
 }
 
-fn let_ (name: String, body: Ast) -> Eval(Ast) {
+fn let_ (name: String, body: Expr) -> Eval(Expr) {
     step(body) |> context.update(fn (env, expr) { 
         env.push(env, name, expr) 
     })
 }
 
-fn lit (literal: ast.Literal(Ast)) -> Eval(Ast) {
+fn lit (literal: expr.Literal(Expr)) -> Eval(Expr) {
     case literal {
-        ast.Array(elements) ->
+        expr.Array(elements) ->
             step_all(elements)
-                |> eval.map(ast.array)
+                |> eval.map(expr.array)
 
-        ast.Exception(message) ->
+        expr.Exception(message) ->
             eval.throw(Exception(message))
          
-        ast.Record(fields) -> {
+        expr.Record(fields) -> {
             let step_field = fn (field) {
                 let #(key, expr) = field
                 step(expr) |> eval.map(fn (expr) { #(key, expr) })
@@ -139,15 +139,15 @@ fn lit (literal: ast.Literal(Ast)) -> Eval(Ast) {
 
             list.map(fields, step_field)
                 |> eval.all
-                |> eval.map(ast.record)
+                |> eval.map(expr.record)
         }
 
         _ ->
-            eval.succeed(ast.Lit(literal))
+            eval.succeed(expr.Lit(literal))
     }
 }
 
-fn var (name: String) -> Eval(Ast) {
+fn var (name: String) -> Eval(Expr) {
     context.get()
         |> eval.map(env.lookup(_, name))
         |> eval.then(fn (expr) {
@@ -163,8 +163,8 @@ fn var (name: String) -> Eval(Ast) {
 
 // QUERIES ---------------------------------------------------------------------
 
-fn typeof (expr: Ast) -> Eval(ast.Type) {
-    case ast.simple_typeof(expr) {
+fn typeof (expr: Expr) -> Eval(expr.Type) {
+    case expr.simple_typeof(expr) {
         option.Some(t) ->
             eval.succeed(t)
         

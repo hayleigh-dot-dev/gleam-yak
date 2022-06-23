@@ -9,20 +9,22 @@ import gleam/pair
 
 ///
 ///
-pub type Ast {
-    Block(List(Ast))
-    Call(Ast, Ast)
-    Extern(fn (Map(String, Ast)) -> Ast)
-    Fun(String, Ast)
-    If(Ast, Ast, Option(Ast))
-    Let(String, Ast)
-    Lit(Literal(Ast))
+pub type Expr {
+    ///
+    Block(List(Expr))
+    /// Functions in yak are curried, so all function calls are 
+    Call(Expr, Expr)
+    Extern(fn (Map(String, Expr)) -> Expr)
+    Fun(String, Expr)
+    If(Expr, Expr, Option(Expr))
+    Let(String, Expr)
+    Lit(Literal(Expr))
     Var(String)
 }
 
 ///
 ///
-/// ❓ Why is this parameterised by a generic `expr`, why not just use `Ast`?
+/// ❓ Why is this parameterised by a generic `expr`, why not just use `Expr`?
 /// We want to be able to use the same type for both the literal expressions and
 /// literal _patterns_. It would be weird if our array patterns had expressions
 /// inside and not other patterns, so instead of duplicating these variants in the
@@ -53,13 +55,13 @@ pub type Type {
 
 ///
 ///
-pub fn block (exprs: List(Ast)) -> Ast {
+pub fn block (exprs: List(Expr)) -> Expr {
     Block(exprs)
 }
 
 ///
 ///
-pub fn call (fun: Ast, args: List(Ast)) -> Ast {
+pub fn call (fun: Expr, args: List(Expr)) -> Expr {
     case args {
         [ arg, ..rest ] ->
             call(Call(fun, arg), rest)
@@ -71,13 +73,13 @@ pub fn call (fun: Ast, args: List(Ast)) -> Ast {
 
 ///
 ///
-pub fn extern (fun: fn (Map(String, Ast)) -> Ast) -> Ast {
+pub fn extern (fun: fn (Map(String, Expr)) -> Expr) -> Expr {
     Extern(fun)
 }
 
 ///
 ///
-pub fn fun (args: List(String), body: Ast) -> Ast {
+pub fn fun (args: List(String), body: Expr) -> Expr {
     case args {
         [ arg, ..rest ] ->
             Fun(arg, fun(rest, body))
@@ -89,61 +91,61 @@ pub fn fun (args: List(String), body: Ast) -> Ast {
 
 ///
 ///
-pub fn if_ (cond: Ast, then: Ast, else: Option(Ast)) -> Ast {
+pub fn if_ (cond: Expr, then: Expr, else: Option(Expr)) -> Expr {
     If(cond, then, else)
 }
 
 ///
 ///
-pub fn let_ (name: String, value: Ast) -> Ast {
+pub fn let_ (name: String, value: Expr) -> Expr {
     Let(name, value)
 }
 
 ///
 ///
-pub fn array (elements: List(Ast)) -> Ast {
+pub fn array (elements: List(Expr)) -> Expr {
     Lit(Array(elements))
 }
 
 ///
 ///
-pub fn boolean (value: Bool) -> Ast {
+pub fn boolean (value: Bool) -> Expr {
     Lit(Boolean(value))
 }
 
 ///
 ///
-pub fn raise (message: String) -> Ast {
+pub fn raise (message: String) -> Expr {
     Lit(Exception(message))
 }
 
 ///
 ///
-pub fn number (value: Float) -> Ast {
+pub fn number (value: Float) -> Expr {
     Lit(Number(value))
 }
 
 ///
 ///
-pub fn record (fields: List(#(String, Ast))) -> Ast {
+pub fn record (fields: List(#(String, Expr))) -> Expr {
     Lit(Record(fields))
 }
 
 ///
 ///
-pub fn string (value: String) -> Ast {
+pub fn string (value: String) -> Expr {
     Lit(String(value))
 }
 
 ///
 ///
-pub fn undefined () -> Ast {
+pub fn undefined () -> Expr {
     Lit(Undefined)
 }
 
 ///
 ///
-pub fn var (name: String) -> Ast {
+pub fn var (name: String) -> Expr {
     Var(name)
 }
 
@@ -151,7 +153,7 @@ pub fn var (name: String) -> Ast {
 
 /// Get's the type of an expression *without evaluating it*. 
 ///
-pub fn simple_typeof (expr: Ast) -> Option(Type) {
+pub fn simple_typeof (expr: Expr) -> Option(Type) {
     case expr {
         Extern(_) ->
             option.Some(ExternT)
@@ -186,7 +188,7 @@ pub fn simple_typeof (expr: Ast) -> Option(Type) {
 
 ///
 ///
-pub fn substitute (expr: Ast, name: String, value: Ast) -> Ast {
+pub fn substitute (expr: Expr, name: String, value: Expr) -> Expr {
     case expr {
         Block(expressions) ->
             block(
@@ -234,7 +236,7 @@ pub fn substitute (expr: Ast, name: String, value: Ast) -> Ast {
 
 ///
 ///
-pub fn coerce_to_boolean (expr: Ast) -> Bool {
+pub fn coerce_to_boolean (expr: Expr) -> Bool {
     case expr {
         Extern(_) ->
             True

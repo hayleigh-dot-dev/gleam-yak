@@ -1,6 +1,6 @@
 // IMPORTS ---------------------------------------------------------------------
 
-import yak/ast.{Ast}
+import yak/expr.{Expr}
 import yak/env.{Env}
 
 import gleam/io
@@ -21,8 +21,8 @@ pub fn env () -> Env {
 
 ///
 ///
-fn print () -> Ast {
-    ast.fun([ "x" ], ast.extern(fn (env) {
+fn print () -> Expr {
+    expr.fun([ "x" ], expr.extern(fn (env) {
         // If `x` isn't in the environment at this point, then we have an
         // implementation error in the interpreter – we don't want to raise a
         // yak error here we want things to break!
@@ -36,20 +36,20 @@ fn print () -> Ast {
 
 ///
 ///
-fn add () -> Ast {
-    ast.fun([ "x", "y" ], ast.extern(fn (env) {
+fn add () -> Expr {
+    expr.fun([ "x", "y" ], expr.extern(fn (env) {
         assert Ok(x) = map.get(env, "x")
         assert Ok(y) = map.get(env, "y")
 
         case x, y {
-            ast.Lit(ast.Number(x)), ast.Lit(ast.Number(y)) ->
-                ast.number(x +. y)
+            expr.Lit(expr.Number(x)), expr.Lit(expr.Number(y)) ->
+                expr.number(x +. y)
             
-            ast.Lit(ast.Number(_)), _ ->
-                ast.raise("...")
+            expr.Lit(expr.Number(_)), _ ->
+                expr.raise("...")
 
             _, _ ->
-                ast.raise("...")
+                expr.raise("...")
         }
     }))
 }

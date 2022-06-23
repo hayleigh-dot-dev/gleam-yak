@@ -1,6 +1,6 @@
 // IMPORTS ---------------------------------------------------------------------
 
-import yak/ast.{Ast}
+import yak/expr.{Expr}
 
 import gleam/list
 import gleam/map.{Map}
@@ -13,7 +13,7 @@ import gleam/option.{Option}
 ///
 pub opaque type Env {
     Empty
-    Extend(String, Ast, Env)
+    Extend(String, Expr, Env)
 }
 
 // CONSTRUCTORS ----------------------------------------------------------------
@@ -22,7 +22,7 @@ pub fn new () -> Env {
     Empty
 }
 
-pub fn from_list (list: List(#(String, Ast))) -> Env {
+pub fn from_list (list: List(#(String, Expr))) -> Env {
     list.fold(list, Empty, fn (env, binding) {
         let #(name, value) = binding
 
@@ -30,13 +30,13 @@ pub fn from_list (list: List(#(String, Ast))) -> Env {
     })
 }
 
-pub fn from_map (map: Map(String, Ast)) -> Env {
+pub fn from_map (map: Map(String, Expr)) -> Env {
     map.fold(map, Empty, push)
 }
 
 // QUERIES ---------------------------------------------------------------------
 
-pub fn lookup (env: Env, name: String) -> Option(Ast) {
+pub fn lookup (env: Env, name: String) -> Option(Expr) {
     case env {
         Empty ->
             option.None
@@ -63,8 +63,8 @@ pub fn includes(env: Env, name: String) -> Bool {
 
 /// Extend the current environment with a new binding.
 ///
-pub fn push (env: Env, name: String, ast: Ast) -> Env {
-    Extend(name, ast, env)
+pub fn push (env: Env, name: String, expr: Expr) -> Env {
+    Extend(name, expr, env)
 }
 
 pub fn merge (env: Env, new: Env) -> Env {
@@ -88,7 +88,7 @@ pub fn pop (env: Env) -> Env {
 /// Flatten an environment into a simple `Map`. This prefers newer bindings to
 /// to older ones in cases where a name is shadowed. 
 ///
-pub fn to_map (env: Env) -> Map(String, Ast) {
+pub fn to_map (env: Env) -> Map(String, Expr) {
     case env {
         Empty ->
             map.new()
