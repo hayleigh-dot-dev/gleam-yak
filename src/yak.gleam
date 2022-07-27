@@ -1,4 +1,4 @@
-// IMPORtS ---------------------------------------------------------------------
+// IMPORTS ---------------------------------------------------------------------
 
 import yak/expr.{Expr}
 import yak/env.{Env}
@@ -179,4 +179,10 @@ fn typeof (expr: Expr) -> Eval(expr.Type) {
         option.None ->
             step(expr) |> eval.then(typeof)
     }
+}
+
+// MEMES -----------------------------------------------------------------------
+
+pub fn shave () {
+    shave()
 }
